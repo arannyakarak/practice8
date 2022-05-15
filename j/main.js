@@ -7,6 +7,15 @@ var inputVal;
 var result;
 var res;
 
+var db = new Dexie("CityWeatherDB");
+
+  // Define the database schema(structure), which includes tables and their key indices
+  db.version(1).stores({
+    cityWeathers: `name,data`,
+    cityAqis: `name,data`
+  });
+  
+
 //Function to delete the various cards using the id
 function deleteCard(n){
     document.getElementById(n).remove();
@@ -32,13 +41,28 @@ form.addEventListener('submit', e => {
 });
 async function fetchWeather(key,city){
     try {
-        let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${key}&units=metric`);
-        let data = await response.json();
-        localStorage.setItem('wtr', JSON.stringify(data));
-        return data;
+        if (navigator.onLine) {
+            let response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${key}&units=metric`);
+            let data = await response.json();
+            
+            // var cityExists = db.cityWeathers.where("name").equals(city).first();
+            // if (cityExists === null || cityExists === undefined) {
+              await db.cityWeathers.put({name: city, data: data});
+            // } else {
+                // db.cityWeathers.put(city, data);
+            // }
+            return data;
+        } else {
+            var rs = await db.cityWeathers.where("name").equals(city).first();
+            if (rs === undefined) {
+                console.log('Please check your interent connection and ' + city + ' not found in Index DB');
+                return null;
+            }
+            return rs.data;
+        }
     }
     catch(err) {
-        return JSON.parse(localStorage.getItem('wtr'));
+        console.log('Oops!', err);
     }
 }
 
@@ -47,7 +71,11 @@ async function useWeather(){
         result = await fetchWeather(apiKey, inputVal);
         res = await fetchLattLong(inputVal);
     
-        addCard();
+        if (result !== null && res !== null) {
+            addCard();
+        } else {
+            alert('Please check your interent connection and ' + inputVal + ' city not found in Index DB');
+        }
     }
     catch(error){
         alert('Please enter a valid city');
@@ -69,17 +97,28 @@ async function fetchLattLong(city){
         //     method: 'GET',
         //     headers: headers
         // });
-        let response = await fetch(`https://api.waqi.info/feed/${city}/?token=c3d00f04680ed6402e8567a9314b1df8073cae74`);
-        let data = await response.json();
-        // let data =  localStorage.getItem("latlon");
-        localStorage.setItem('latlon', JSON.stringify(data));
-        console.log(data);
-        return data;
+        if (navigator.onLine) {
+            let response = await fetch(`https://api.waqi.info/feed/${city}/?token=c3d00f04680ed6402e8567a9314b1df8073cae74`);
+            let data = await response.json();
+            
+            // var cityExists = db.cityAqis.where("name").equals(city).first();
+            // if (cityExists === null || cityExists === undefined) {
+                await db.cityAqis.put({name: city, data: data});
+            // } else {
+            //     db.cityAqis.put(city, data);
+            // }
+            return data;
+        } else {
+            var rs = await db.cityAqis.where("name").equals(city).first();
+            if (rs === undefined) {
+                console.log('Please check your interent connection and ' + city + ' not found in Index DB');
+                return null;
+            }
+            return rs.data;
+        }
     } catch (err) {
         //this only runs if an error occurs in above process
         console.log('Oops!', err);
-        // console.log(localStorage.getItem('latlon'));
-        return JSON.parse(localStorage.getItem('latlon'));
     }
 }
 
